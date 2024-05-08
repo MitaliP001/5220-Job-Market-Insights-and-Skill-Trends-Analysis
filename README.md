@@ -14,8 +14,5 @@ This project focuses on analyzing job market insights and skill trends using a d
 - Latika Kapoor
 - Mitali Purohit
 
-## License
-This project is licensed under the [MIT License](link).
-
 ## Contact Information
-For any inquiries or feedback regarding the project, please contact the project team members or the instructor.
+For any inquiries or feedback regarding the project, please contact the project team members.
