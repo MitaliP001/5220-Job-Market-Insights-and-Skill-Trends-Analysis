@@ -1,0 +1,505 @@
+
+
+==== UPLOADING RAW DATA TO HDFS ====
+
+STEP 1 - Make your directories where you want to store your data
+
+hdfs dfs -mkdir linkedin
+hdfs dfs -mkdir linkedin/2024
+hdfs dfs -mkdir linkedin/2023
+hdfs dfs -mkdir linkedin/skills
+hdfs dfs -mkdir linkedin/summary
+
+
+STEP 2 - Upload every file that you are using in SCP in a separate gitbash window
+
+
+-- Code for 2024 CSV File --
+
+scp "C:\Users\derek\Job Postings 2024\linkedin_job_postings_2024.csv" dabrego4@129.153.214.22:/home/dabrego4
+
+--Once the file has been uploaded, you will then need put the file in the proper directory
+
+hdfs dfs -put "linkedin_job_postings_2024.csv" linkedin/2024/
+
+
+-- Code for 2023 CSV File --
+
+scp "C:\Users\derek\Job Postings 2024\linkedin_job_posts_insights_2023.csv" dabrego4@129.153.214.22:/home/dabrego4
+
+--Once the file has been uploaded, you will then need put the file in the proper directory
+
+hdfs dfs -put "linkedin_job_posts_insights_2023.csv" linkedin/2023/
+
+
+-- Code for Skills CSV File --
+
+scp "C:\Users\derek\Job Postings 2024\job_skills_2024.csv" dabrego4@129.153.214.22:/home/dabrego4
+
+--Once the file has been uploaded, you will then need put the file in the proper directory
+
+hdfs dfs -put "job_skills_2024.csv" linkedin/skills/
+
+
+-- Code for Summary CSV File --
+
+scp "C:\Users\derek\Job Postings 2024\job_summary_2024.csv" dabrego4@129.153.214.22:/home/dabrego4
+
+--Once the file has been uploaded, you will then need put the file in the proper directory
+
+hdfs dfs -put "job_summary_2024.csv" linkedin/summary/
+
+=========================================================================================================
+
+
+
+==== TABLE CREATION & ANALYSIS IN HIVE ====
+
+
+#Section 1 - CREATING TABLES
+==================================================
+
+CREATING Table 2023 - 
+---------------------------------------------
+
+CREATE EXTERNAL TABLE IF NOT EXISTS insights_2023 (
+    job_title STRING, 
+    company_name STRING,
+    location STRING,
+    hiring_status STRING,
+    posted_date STRING,
+    seniority_level STRING,
+    job_function STRING,
+    employment_type STRING,
+    industry STRING
+) 
+ROW FORMAT DELIMITED 
+FIELDS TERMINATED BY ',' 
+STORED AS TEXTFILE 
+LOCATION '/user/dabrego4/linkedin/2023/' 
+TBLPROPERTIES ('skip.header.line.count'='1');
+
+=====================================================
+
+CREATING Table 2024 - 
+---------------------------------------------
+
+CREATE EXTERNAL TABLE IF NOT EXISTS insights_2024 (
+    job_link STRING, 
+    last_processed STRING, 
+    got_summary STRING,
+    got_ner STRING,
+    is_being_worked STRING,
+    job_title STRING,
+    company STRING,
+    job_location STRING,
+    first_seen STRING,
+    search_city STRING,
+    search_country STRING,
+    search_position STRING,
+    job_level STRING,
+    job_type STRING
+) 
+ROW FORMAT DELIMITED 
+FIELDS TERMINATED BY ',' 
+STORED AS TEXTFILE 
+LOCATION '/user/dabrego4/linkedin/2024/' 
+TBLPROPERTIES ('skip.header.line.count'='1');
+
+================================================================
+
+CREATING Table Job Summary - 
+---------------------------------------------
+
+
+DROP TABLE IF EXISTS job_summary_2024; -- correct code
+
+CREATE EXTERNAL TABLE IF NOT EXISTS job_summary_2024 (
+    job_link STRING, 
+    job_summary STRING
+) 
+ROW FORMAT DELIMITED 
+FIELDS TERMINATED BY ',' 
+STORED AS TEXTFILE 
+LOCATION '/user/dabrego4/linkedin/summary' 
+TBLPROPERTIES ('skip.header.line.count'='1');
+
+===============================================
+
+CREATING Table Job Skills - 
+---------------------------------------------
+
+
+CREATE EXTERNAL TABLE IF NOT EXISTS job_skills_2024 (
+    job_link STRING, 
+    job_skills STRING
+) 
+ROW FORMAT DELIMITED 
+FIELDS TERMINATED BY ',' 
+STORED AS TEXTFILE 
+LOCATION '/user/dabrego4/linkedin/skills/' 
+TBLPROPERTIES ('skip.header.line.count'='1');
+
+=========================================================
+=========================================================
+
+
+#Section 2 - CLEANING TABLES
+
+=====================================================================
+
+CLEANING Table 2023 - 
+---------------------------------------------
+
+CREATE TABLE cleaned_insights_2023 AS
+SELECT
+    REGEXP_REPLACE(TRIM(job_title), '[\\r\\n]+|[^a-zA-Z0-9 ,.]', ' ') AS job_title,
+    REGEXP_REPLACE(TRIM(company_name), '[\\r\\n]+|[^a-zA-Z0-9 ,.]', ' ') AS company_name,
+    REGEXP_REPLACE(TRIM(location), '[\\r\\n]+|[^a-zA-Z0-9 ,.]', ' ') AS location,
+    REGEXP_REPLACE(TRIM(posted_date), '[\\r\\n]+|[^a-zA-Z0-9 ,.]', ' ') AS posted_date,
+    REGEXP_REPLACE(TRIM(seniority_level), '[\\r\\n]+|[^a-zA-Z0-9 ,.]', ' ') AS seniority_level,
+    REGEXP_REPLACE(TRIM(job_function), '[\\r\\n]+|[^a-zA-Z0-9 ,.]', ' ') AS job_function,
+    REGEXP_REPLACE(TRIM(industry), '[\\r\\n]+|[^a-zA-Z0-9 ,.]', ' ') AS industry
+FROM
+    insights_2023
+WHERE
+    job_title IS NOT NULL AND
+    company_name IS NOT NULL AND
+    location IS NOT NULL AND
+    posted_date IS NOT NULL AND
+    seniority_level IS NOT NULL AND
+    job_function IS NOT NULL AND
+    industry IS NOT NULL;
+
+=====================================================
+
+CLEANING Table 2024 -
+---------------------------------------
+
+CREATE TABLE cleaned_insights_2024 AS
+SELECT
+    REGEXP_REPLACE(TRIM(job_title), '[\\r\\n]+|[^a-zA-Z0-9 ,.]', ' ') AS job_title,
+    REGEXP_REPLACE(TRIM(company), '[\\r\\n]+|[^a-zA-Z0-9 ,.]', ' ') AS company,
+    REGEXP_REPLACE(TRIM(job_location), '[\\r\\n]+|[^a-zA-Z0-9 ,.]', ' ') AS job_location,
+    REGEXP_REPLACE(TRIM(first_seen), '[\\r\\n]+|[^a-zA-Z0-9 ,.]', ' ') AS first_seen,
+    REGEXP_REPLACE(TRIM(search_country), '[\\r\\n]+|[^a-zA-Z0-9 ,.]', ' ') AS search_country,
+    REGEXP_REPLACE(TRIM(job_level), '[\\r\\n]+|[^a-zA-Z0-9 ,.]', ' ') AS job_level
+FROM
+    insights_2024
+WHERE
+    job_title IS NOT NULL AND
+    company IS NOT NULL AND
+    job_location IS NOT NULL AND
+    first_seen IS NOT NULL AND
+    search_country IS NOT NULL AND
+    job_level IS NOT NULL;
+	
+===================================================
+
+CLEANING Table Summary -
+------------------------
+#Step 1
+
+CREATE EXTERNAL TABLE IF NOT EXISTS job_summary_2024 (
+    job_link STRING,
+    job_summary STRING
+)
+ROW FORMAT SERDE 'org.apache.hadoop.hive.serde2.OpenCSVSerde'
+WITH SERDEPROPERTIES (
+    "separatorChar" = ",",
+    "quoteChar" = "\"",
+    "escapeChar" = "\\"
+)
+STORED AS TEXTFILE
+LOCATION '/user/dabrego4/linkedin/summary';
+
+-----------
+#Step 2
+
+CREATE view cleaned_job_summary_2024 AS
+SELECT
+    job_link,
+    REGEXP_REPLACE(
+        REGEXP_REPLACE(
+            TRIM(job_summary),         -- Trim whitespace
+            '\\r|\\n', ' '             -- Replace carriage returns and new lines with a space
+        ),
+        '[^a-zA-Z0-9\\s]+', ''        -- Remove special characters, keeping only alphanumeric and spaces
+    ) AS cleaned_summary
+FROM job_summary_2024
+WHERE job_summary IS NOT NULL;         -- Exclude rows where job_summary is null
+
+========================================================================================================
+=======================================================================================================
+
+
+#Section 3 - Analysis Questions and Codes -
+
+-----------------------------------
+
+Q - According to LinkedIn job listings, what are the top 20 skills currently in demand?
+-------------------------------------------------
+
+CREATE TABLE top_20_job_skills AS
+SELECT word, COUNT(*) AS count
+FROM (
+    SELECT LOWER(TRIM(word)) AS word
+    FROM (
+        SELECT EXPLODE(SPLIT(job_skills, ',')) AS word
+        FROM job_skills_2024
+    ) AS exploded_words -- Added alias here
+) AS words -- Added alias here
+GROUP BY word
+ORDER BY count DESC
+LIMIT 20;
+
+==================================================
+
+Q - Are there specific job functions or roles that are more likely to mention "Graduate" or "Undergraduate" in their job summaries?
+---------------------------------------------------------------
+
+CREATE TABLE degree_distribution AS
+SELECT 
+    SUM(CASE WHEN cleaned_summary LIKE '%Graduate%' THEN 1 ELSE 0 END) AS graduate_count,
+    SUM(CASE WHEN cleaned_summary LIKE '%Undergraduate%' THEN 1 ELSE 0 END) AS undergraduate_count
+FROM 
+    cleaned_job_summary_2024;
+
+================================================================
+
+Q - Which top 20 companies have the highest number of job listings on LinkedIn?
+-----------------------------------------------------------------
+
+CREATE TABLE top20_company_listings AS
+SELECT 
+    company_name,
+    COUNT(*) AS num_job_listings
+FROM 
+    (
+    SELECT 
+        company_name
+    FROM 
+        cleaned_insights_2023
+    
+    UNION ALL
+    
+    SELECT 
+        company AS company_name
+    FROM 
+        cleaned_insights_2024
+    ) AS combined_data
+GROUP BY 
+    company_name
+ORDER BY 
+    num_job_listings DESC
+LIMIT 20;
+
+=====================================================
+
+Q- What are the top cities in California for IT job opportunities from 2023 to January 2024?
+-----------------------------------------------
+
+=================================================================
+
+CREATE TABLE it_job_location_cities_2023_2024 AS
+SELECT 
+    CONCAT(location, ', CA') AS geography,  -- Appending ', CA' to the location
+    '2023' AS year, 
+    COUNT(*) AS num_entries
+FROM 
+    cleaned_insights_2023
+WHERE 
+    (industry LIKE '%IT%' OR industry LIKE '%Information Technology%' OR industry LIKE '%IT services%' OR industry LIKE '%Technology%' OR industry LIKE '%Data%')
+    AND (
+        location LIKE '%San Francisco%' OR 
+        location LIKE '%Los Angeles%' OR 
+        location LIKE '%San Jose%' OR 
+        location LIKE '%Santa Clara%' OR 
+        location LIKE '%Cupertino%' OR 
+        location LIKE '%Santa Monica%' OR 
+        location LIKE '%Burbank%' OR 
+        location LIKE '%Venice%' OR 
+        location LIKE '%Oakland%' OR 
+        location LIKE '%South San Francisco%' OR 
+        location LIKE '%Redwood City%' OR 
+        location LIKE '%Mountain View%' OR 
+        location LIKE '%Fremont%' OR 
+        location LIKE '%Palo Alto%' OR 
+        location LIKE '%Sunnyvale%' OR 
+        location LIKE '%Pasadena%' OR 
+        location LIKE '%Irvine%'
+    )
+    AND location IS NOT NULL
+GROUP BY 
+    location
+ 
+UNION ALL
+ 
+SELECT 
+    CONCAT(job_location, ', CA') AS geography,  -- Appending ', CA' to the job_location
+    '2024' AS year, 
+    COUNT(*) AS num_entries
+FROM 
+    cleaned_insights_2024
+WHERE 
+    (job_title LIKE '%IT%' OR job_title LIKE '%Information Technology%' OR job_title LIKE '%IT services%' OR job_title LIKE '%Technology%' OR job_title LIKE '%Data%')
+    AND (
+        job_location LIKE '%San Francisco%' OR 
+        job_location LIKE '%Los Angeles%' OR 
+        job_location LIKE '%San Jose%' OR 
+        job_location LIKE '%Santa Clara%' OR 
+        job_location LIKE '%Cupertino%' OR 
+        job_location LIKE '%Santa Monica%' OR 
+        job_location LIKE '%Burbank%' OR 
+        job_location LIKE '%Venice%' OR 
+        job_location LIKE '%Oakland%' OR 
+        job_location LIKE '%South San Francisco%' OR 
+        job_location LIKE '%Redwood City%' OR 
+        job_location LIKE '%Mountain View%' OR 
+        job_location LIKE '%Fremont%' OR 
+        job_location LIKE '%Palo Alto%' OR 
+        job_location LIKE '%Sunnyvale%' OR 
+        job_location LIKE '%Pasadena%' OR 
+        job_location LIKE '%Irvine%'
+    )
+    AND job_location IS NOT NULL
+GROUP BY 
+    job_location
+ 
+ORDER BY 
+   num_entries DESC;
+
+
+================================================================
+
+
+=====================================================
+
+#Section 4 - Getting resultant files to local PC
+------------------------------------------------------
+
+
+-- Code for top_20_job_skills --
+
+STEP 1- Create Directory in HDFS
+
+-bash-4.2$ hdfs dfs -mkdir linkedin/top_20_job_skills
+
+
+STEP 2 - Execute below code in beeline
+
+INSERT OVERWRITE DIRECTORY '/user/dabrego4/linkedin/top_20_job_skills'
+
+ROW FORMAT DELIMITED FIELDS TERMINATED BY ','
+
+SELECT * FROM top_20_job_skills;
+
+
+STEP 3 - Execute below code in HDFS
+
+hdfs dfs -cat linkedin/top_20_job_skills/000000_0 | tail -n 2
+
+hdfs dfs -get /user/dabrego4/linkedin/top_20_job_skills/000000_0 top_20_job_skills.csv
+
+
+STEP 4 - Copy the resultant file to your local PC
+
+scp dabrego4@129.153.214.22:/home/dabrego4/top_20_job_skills.csv .
+
+===========================================================================================
+
+
+-- Code for degree_distribution --
+
+STEP 1- Create Directory in HDFS
+
+-bash-4.2$ hdfs dfs -mkdir linkedin/degree_distribution
+
+
+STEP 2 - Execute below code in beeline
+
+INSERT OVERWRITE DIRECTORY '/user/dabrego4/linkedin/degree_distribution'
+
+ROW FORMAT DELIMITED FIELDS TERMINATED BY ','
+
+SELECT * FROM degree_distribution;
+
+
+STEP 3 - Execute below code in HDFS
+
+hdfs dfs -cat linkedin/degree_distribution/000000_0 | tail -n 2
+
+hdfs dfs -get /user/dabrego4/linkedin/degree_distribution/000000_0 degree_distribution.csv
+
+
+STEP 4 - Copy the resultant file to your local PC
+
+scp dabrego4@129.153.214.22:/home/dabrego4/degree_distribution.csv .
+
+=================================================================================================
+
+
+-- Code for top20_company_listings --
+
+
+STEP 1- Create Directory in HDFS
+
+-bash-4.2$ hdfs dfs -mkdir linkedin/top20_company_listings
+
+
+
+STEP 2 - Execute below code in beeline
+
+INSERT OVERWRITE DIRECTORY '/user/dabrego4/linkedin/top20_company_listings'
+
+ROW FORMAT DELIMITED FIELDS TERMINATED BY ','
+
+SELECT * FROM top20_company_listings;
+
+
+
+STEP 3 - Execute below code in HDFS
+
+hdfs dfs -cat linkedin/top20_company_listings/000000_0 | tail -n 2
+
+hdfs dfs -get /user/dabrego4/linkedin/top20_company_listings/000000_0 top20_company_listings.csv
+
+
+
+STEP 4 - Copy the resultant file to your local PC
+
+scp dabrego4@129.153.214.22:/home/dabrego4/top20_company_listings.csv .
+
+==========================================================================================================
+
+
+-- Code for it_job_location_cities_2023_2024 --
+
+
+STEP 1- Create Directory in HDFS
+
+-bash-4.2$ hdfs dfs -mkdir linkedin/it_job_location_cities_2023_2024
+
+
+STEP 2 - Execute below code in beeline
+   
+INSERT OVERWRITE DIRECTORY '/user/dabrego4/linkedin/it_job_location_cities_2023_2024'
+
+ROW FORMAT DELIMITED FIELDS TERMINATED BY ','
+
+SELECT * FROM it_job_location_cities_2023_2024;
+
+
+STEP 3 - Execute below code in HDFS
+
+hdfs dfs -cat linkedin/it_job_location_cities_2023_2024/000000_0 | tail -n 2
+
+hdfs dfs -get /user/dabrego4/linkedin/it_job_location_cities_2023_2024/000000_0 it_job_location_cities_2023_2024.csv
+
+
+STEP 4 - Copy the resultant file to your local PC
+
+scp dabrego4@129.153.214.22:/home/dabrego4/it_job_location_cities_2023_2024.csv .
+
+=====================================================================================================================
+
